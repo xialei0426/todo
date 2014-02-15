@@ -1,0 +1,114 @@
+#!/usr/bin/env ruby
+require 'gli'
+begin # XXX: Remove this begin/rescue before distributing your app
+require 'todo'
+rescue LoadError
+  STDERR.puts "In development, you need to use `bundle exec bin/todo` to run your app"
+  STDERR.puts "At install-time, RubyGems will make sure lib, etc. are in the load path"
+  STDERR.puts "Feel free to remove this message from bin/todo now"
+  exit 64
+end
+
+include GLI::App
+
+program_desc 'a tool for work orinize'
+
+version Todo::VERSION
+
+desc 'Describe some switch here'
+switch [:s,:switch]
+
+desc 'Path to the todo file'
+default_value File.expand_path('~')
+arg_name "todo_file"
+flag :f
+
+desc 'create a new job'
+arg_name 'task_name'
+command :c do |c|
+	#	c.switch [:f]
+	#	c.desc	'put the new task first in the list'
+  c.action do |global_options,options,args|
+		file = File.open(File.join(global_options[:f],'.todo'), "a+")
+		jobs = []
+		jobs << "#{Time.now}\tnot finished\t#{args.join(' ')}"
+		while (line = file.gets)
+			jobs << line
+		end	
+		file.close
+		File.open(File.join(global_options[:f], '.todo'), 'w') do |f|
+			jobs.each{|job| f.puts job}
+		end
+		puts 'job added'
+  end
+end
+
+desc 'list all jobs'
+command :l do |c|
+  c.action do |global_options,options,args|
+		File.open(File.join(global_options[:f], '.todo'), 'r') do |f|
+			index = 0
+			while (line=f.gets)
+				index += 1
+				puts index.inspect + "\t" + line
+			end
+		end
+	end
+end
+
+desc 'finish one job'
+arg_name 'job_id'
+command :f do |c|
+  c.action do |global_options,options,args|
+		jobs = []
+		File.open(File.join(global_options[:f], '.todo'), 'r') do |f|
+			index = 0
+			while (line=f.gets)
+				index += 1
+				if index.eql?args[0].to_i
+					jobs << line.sub('not ', '')
+				else
+					jobs << line
+				end
+			end
+		end
+		jobs.each_with_index do |job, index|
+			puts (index+1).inspect + "\t" + job
+		end
+		File.open(File.join(global_options[:f], '.todo'), 'w') do |f|
+			jobs.each{|job| f.puts job}
+		end
+	end
+end
+
+desc 'delete all jobs'
+command :d do |c|
+  c.action do |global_options,options,args|
+		File.open(File.join(global_options[:f], '.todo'), 'w') do |f|
+		end
+		puts 'jobs deleted'
+	end
+end
+
+pre do |global,command,options,args|
+  # Pre logic here
+  # Return true to proceed; false to abort and not call the
+  # chosen command
+  # Use skips_pre before a command to skip this block
+  # on that command only
+  true
+end
+
+post do |global,command,options,args|
+  # Post logic here
+  # Use skips_post before a command to skip this
+  # block on that command only
+end
+
+on_error do |exception|
+  # Error logic here
+  # return false to skip default error handling
+  true
+end
+
+exit run(ARGV)
